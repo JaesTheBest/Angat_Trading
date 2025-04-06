@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="../assets/Design.css"> 
+</head>
+<body>
+
+    <div class="signInBox">
+        <form id="signInform" class="signIn">
+
+            <img src="../assets/Main_Logo.png" alt="Logo" class="logo">
+
+            <h2>Sign In</h2>
+            
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+            
+            <label for="password">Password</label>
+            <div style="position: relative; display: inline-block; width: 100%;">
+                <input type="password" id="password" name="password" placeholder="Enter your password" required 
+                       style="width: 100%; padding-right: 30px;">
+                <span id="togglePassword" 
+                      style="position: absolute; right: 10px; top: 40%; transform: translateY(-53%); cursor: pointer; user-select: none;">
+                    🔒
+                </span>
+            </div>
+            
+            <button type="submit">Sign In</button>
+        </form>
+        
+        <p><a href="ResetPassword.html">Forgot Password?</a></p>
+        <p>Don't have an account? <a href="index.html">Sign Up</a></p>
+    </div>
+
+    <!-- Firebase & Logic Script -->
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAx8GAPs3ifVtqa6Iy7_vELutI6EVm-_fk",
+            authDomain: "angat-trading.firebaseapp.com",
+            projectId: "angat-trading",
+            storageBucket: "angat-trading.appspot.com",
+            messagingSenderId: "366990529132",
+            appId: "1:366990529132:web:bde639e9d442c3cda6be49"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Toggle password visibility
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function() {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                togglePassword.textContent = '🔓';
+            } else {
+                passwordInput.type = 'password';
+                togglePassword.textContent = '🔒';
+            }
+        });
+
+        // Handle login
+        document.getElementById("signInform").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                alert("Login successful!");
+
+                sessionStorage.setItem('user', JSON.stringify(userCredential.user));
+                const userRef = doc(db, "users", userCredential.user.uid);
+                const userDoc = await getDoc(userRef);
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const userRole = userData.role.toLowerCase();
+                    sessionStorage.setItem('role', userRole);
+
+                    if (userRole === 'admin') {
+                        window.location.href = "admin_dashboard.html";
+                    } else if (userRole === 'staff') {
+                        window.location.href = "staff_dashboard.html";
+                    } else {
+                        window.location.href = "user_dashboard.html";
+                    }
+                } else {
+                    alert("User data not found.");
+                }
+
+            } catch (error) {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+
+                if (errorCode === 'auth/invalid-email') {
+                    alert('The email address is not valid.');
+                } else if (errorCode === 'auth/user-not-found') {
+                    alert('No user found with this email.');
+                } else if (errorCode === 'auth/wrong-password') {
+                    alert('Incorrect password.');
+                } else {
+                    alert("Login failed: " + errorMessage);
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Register</title>
+    <link rel="stylesheet" href="../assets/Design.css" />
+</head>
+<body>
+    <div class="registerBox">
+        <form id="registerForm" class="register">
+
+            <img src="../assets/Main_Logo.png" alt="Logo" class="logo">
+
+            <h2>Sign Up</h2>
+
+            <label for="firstname">First Name</label>
+            <input type="text" id="firstname" name="firstname" placeholder="Enter your first name" required />
+
+            <label for="lastname">Last Name</label>
+            <input type="text" id="lastname" name="lastname" placeholder="Enter your last name" required />
+
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email" required />
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Create a password" required />
+
+            <label for="confirmPassword">Confirm Password</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" required />
+
+            <div style="position: relative; display: inline-block; width: 100%;">
+                <span id="togglePassword" 
+                      style="text-align: center; cursor: pointer; user-select: none; color: #355068;">
+                    🔒 Show Password
+                </span>
+            </div>
+
+            <button type="submit">Create Account</button>
+        </form>
+
+        <p>Already have an account? <a href="SignIn.html">Sign in</a></p>
+    </div>
+
+    <!-- Firebase and Custom Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, getDoc, updateDoc, increment, runTransaction 
+        } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAx8GAPs3ifVtqa6Iy7_vELutI6EVm-_fk",
+            authDomain: "angat-trading.firebaseapp.com",
+            projectId: "angat-trading",
+            storageBucket: "angat-trading.appspot.com",
+            messagingSenderId: "366990529132",
+            appId: "1:366990529132:web:bde639e9d442c3cda6be49"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        document.getElementById("registerForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            let email = document.getElementById("email").value;
+            let password = document.getElementById("password").value;
+            let confirmPassword = document.getElementById("confirmPassword").value;
+            let firstName = document.getElementById("firstname").value;
+            let lastName = document.getElementById("lastname").value;
+
+            if (password !== confirmPassword) {
+                alert("Passwords do not match!");
+                return;
+            }
+
+            try {
+                // Step 1: Get new auto-increment userID using a transaction
+                const counterRef = doc(db, "counters", "users");
+
+                const newUserID = await runTransaction(db, async (transaction) => {
+                    const counterDoc = await transaction.get(counterRef);
+
+                    if (!counterDoc.exists()) {
+                        transaction.set(counterRef, { currentID: 1 });
+                        return 1;
+                    }
+
+                    const currentID = counterDoc.data().currentID || 0;
+                    const nextID = currentID + 1;
+                    transaction.update(counterRef, { currentID: nextID });
+                    return nextID;
+                });
+
+                // Step 2: Create Firebase Auth user
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Step 3: Store user data with auto-increment userID
+                await setDoc(doc(db, "users", user.uid), {
+                    userID: newUserID,
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    role: "User",
+                    trader: false
+                });
+
+                alert("Account created successfully!");
+                window.location.href = "SignIn.html";
+
+            } catch (error) {
+                alert("Error during registration: " + error.message);
+            }
+        });
+
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword'); // Add this line
+
+        togglePassword.addEventListener('click', function() {
+            // Toggle password field visibility
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                togglePassword.textContent = '🔓 Hide Password'; // Change to "Hide" icon
+            } else {
+                passwordInput.type = 'password';
+                togglePassword.textContent = '🔒 Show Password'; // Change back to "Show" icon
+            }
+
+            // Toggle confirm password field visibility (same as password)
+            if (confirmPasswordInput.type === 'password') {
+                confirmPasswordInput.type = 'text';
+            } else {
+                confirmPasswordInput.type = 'password';
+            }
+        });
+    </script>
+</body>
+</html>
